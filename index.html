@@ -59,8 +59,28 @@ input.code{font-size:1.5rem;text-align:center;letter-spacing:.18em;font-weight:7
 .pin .lbl small{display:block;color:var(--muted);font-size:10px}.pin.stale .lbl small{color:var(--warn)}
 .pin .d{width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);margin-top:3px}
 .pin.ok .d{background:var(--ok)}.pin.warn .d{background:var(--warn)}.pin.stale .d{background:var(--stale);border-style:dashed;border-color:var(--warn)}
-.stand-pin{width:22px;height:22px;transform:translate(-50%,-100%)}
+.stand-pin{width:26px;height:26px}
+.stand-tip{background:rgba(18,27,22,.92)!important;border:1px solid var(--sky)!important;color:var(--ink)!important;font-weight:700;font-size:11px;padding:3px 7px;border-radius:8px;box-shadow:none!important}
+.stand-tip::before{display:none}
 .leaflet-div-icon{background:none;border:0}
+#ar{position:fixed;inset:0;background:#000;z-index:1500;overflow:hidden}
+#arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#arCompass{position:absolute;left:0;right:0;top:0;height:52px;padding-top:env(safe-area-inset-top);background:linear-gradient(rgba(0,0,0,.7),rgba(0,0,0,0))}
+#arCompass .tick{position:absolute;bottom:14px;width:1px;height:8px;background:rgba(255,255,255,.5)}
+#arCompass .tick.major{height:14px;background:#fff}
+#arCompass .lbl{position:absolute;bottom:0;transform:translateX(-50%);font-size:.72rem;font-weight:700;color:#fff}
+#arCompass .center{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);border:6px solid transparent;border-top:8px solid var(--warn)}
+#arLayer{position:absolute;inset:0;pointer-events:none}
+.armk{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:5px;white-space:nowrap}
+.armk .box{background:rgba(18,27,22,.85);border:1px solid rgba(223,231,221,.4);border-radius:10px;padding:7px 10px;text-align:center;font-size:.95rem;font-weight:700;color:#fff}
+.armk .box small{display:block;font-weight:400;font-size:.75rem;color:var(--muted)}
+.armk .ring{width:22px;height:22px;border-radius:50%;border:2px solid var(--ok)}
+.armk.warn .ring{border-color:var(--warn)}.armk.stale .ring{border-color:var(--warn);border-style:dashed;width:36px;height:36px}.armk.stale .box{border-style:dashed;border-color:var(--warn)}.armk.stale .box small{color:var(--warn)}
+.armk.point .ring{border-color:var(--sky);width:16px;height:16px}
+.edge{position:absolute;top:50%;transform:translateY(-50%);background:rgba(18,27,22,.85);border:1px solid rgba(223,231,221,.35);border-radius:10px;padding:8px 10px;font-size:.8rem;color:#fff;max-width:130px;line-height:1.35}
+.edge.l{left:8px}.edge.r{right:8px;text-align:right}.edge span{display:block;color:var(--muted)}
+#arInfo{position:absolute;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));text-align:center;font-size:.85rem;color:#fff;text-shadow:0 1px 3px #000}
+.ar-foot{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(18,27,22,.85);border-radius:10px;padding:9px 11px;font-size:.74rem;line-height:1.4;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -84,10 +104,18 @@ input.code{font-size:1.5rem;text-align:center;letter-spacing:.18em;font-weight:7
   <div id="map"></div>
   <div class="pane" id="pane"></div>
   <nav class="tabs">
-    <button data-t="map" class="on">Lagebild</button><button data-t="stand">Mein Stand</button><button data-t="stands">Stände</button><button class="leave" id="leaveBtn">Abmelden</button>
+    <button data-t="map" class="on">Lagebild</button><button data-t="stand">Mein Stand</button><button data-t="stands">Stände</button><button data-t="ar">AR</button><button class="leave" id="leaveBtn">Abmelden</button>
   </nav>
 </section>
 
+<section id="ar" class="hidden">
+  <video id="arVideo" autoplay playsinline muted></video>
+  <div id="arCompass"></div>
+  <div id="arLayer"></div>
+  <div id="arInfo">AR startet …</div>
+  <div class="ar-foot">Marker aus Positions- und Kompassdaten, nicht aus dem Kamerabild. Personen ohne App werden nicht erkannt. Richtung ungefähr – Kompass kann abweichen.</div>
+  <button class="btn sec" id="arClose" style="position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;width:auto;margin:0;padding:10px 14px;z-index:5">Schließen</button>
+</section>
 <div class="sheet" id="sheet"><div class="card" id="card"></div></div>
 
 <script>
@@ -140,9 +168,10 @@ function startSession(){
   if(!map){
     map=L.map('map',{zoomControl:false,attributionControl:true}).setView([51.2,9.4],7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-    layerAcc=L.layerGroup().addTo(map);layerStands=L.layerGroup().addTo(map);layerPeople=L.layerGroup().addTo(map);
+    layerAcc=L.layerGroup().addTo(map);layerPeople=L.layerGroup().addTo(map);layerStands=L.layerGroup().addTo(map);
   }
-  document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;render();});
+  document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{if(b.dataset.t==='ar'){startAR();return;}S.tab=b.dataset.t;render();});
+  $('arClose').onclick=stopAR;
   $('leaveBtn').onclick=leaveSession;
   load();
   S.channel=sb.channel('session-'+S.code)
@@ -201,10 +230,11 @@ function render(){
   // Karte
   layerPeople.clearLayers();layerAcc.clearLayers();layerStands.clearLayers();
   S.stands.forEach(st=>{const mine=st.id===S.me?.stand_id&&S.me?.status==='on_stand';
-    L.marker([st.lat,st.lng],{icon:L.divIcon({className:'',html:`<svg class="stand-pin" viewBox="0 0 22 22"><rect x="4" y="3" width="14" height="9" rx="1.5" fill="${mine?'#3b5346':'#2a3c33'}" stroke="${mine?'#a4b8a8':'#8db3c9'}" stroke-width="1.5"/><path d="M6 12l-3 9M16 12l3 9M4 17h14" stroke="${mine?'#a4b8a8':'#8db3c9'}" stroke-width="1.5" fill="none"/></svg>`,iconSize:[22,22],iconAnchor:[11,22]})}).bindTooltip(st.name,{direction:'top',offset:[0,-22]}).addTo(layerStands);});
+    const occ=people.some(p=>p.stand_id===st.id&&p.status==='on_stand');
+    L.marker([st.lat,st.lng],{zIndexOffset:1000,icon:L.divIcon({className:'',html:`<svg class="stand-pin" viewBox="0 0 22 22"><rect x="4" y="3" width="14" height="9" rx="1.5" fill="${occ?'#3b5346':'#1b2822'}" stroke="${occ?'#8fbf7f':'#8db3c9'}" stroke-width="1.6"/><path d="M6 12l-3 9M16 12l3 9M4 17h14" stroke="${occ?'#8fbf7f':'#8db3c9'}" stroke-width="1.6" fill="none"/></svg>`,iconSize:[26,26],iconAnchor:[13,26]})}).bindTooltip(esc(st.name)+(occ?' · besetzt':''),{permanent:true,direction:'right',offset:[12,-14],className:'stand-tip'}).addTo(layerStands);});
   people.forEach(p=>{if(p.lat==null)return;const t=tone(p,now),st=standOf(p);
     if(p.accuracy>0)L.circle([p.lat,p.lng],{radius:p.accuracy,color:'#8db3c9',weight:1,opacity:.5,fillOpacity:.1}).addTo(layerAcc);
-    L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div class="pin ${t.cls}"><div class="lbl">${esc(p.name)}${p.isMe?' (du)':''}${st&&p.status==='on_stand'?' · '+esc(st.name):''}<small>${t.txt}</small></div><div class="d"></div></div>`,iconSize:[0,0]})}).addTo(layerPeople);});
+    L.marker([p.lat,p.lng],{zIndexOffset:p.isMe?-100:0,icon:L.divIcon({className:'',html:`<div class="pin ${t.cls}"><div class="lbl">${esc(p.name)}${p.isMe?' (du)':''}${st&&p.status==='on_stand'?' · '+esc(st.name):''}<small>${t.txt}</small></div><div class="d"></div></div>`,iconSize:[0,0]})}).addTo(layerPeople);});
 
   // Untere Fläche
   const pane=$('pane');
@@ -237,6 +267,52 @@ function leaveSheet(){openSheet(`<h2>Stand verlassen?</h2><p>Die Gruppe wird sof
 function pickSheet(){openSheet(`<h2>Welchen Stand bestätigst du?</h2><p>Erst deine Bestätigung zählt.</p>${S.stands.map(st=>`<button class="btn sec" onclick="confirmStand('${st.id}')">${esc(st.name)}</button>`).join('')}`);}
 function addSheet(){openSheet(`<h2>Stand anlegen</h2><p>Position: ${S.pos.lat.toFixed(5)}, ${S.pos.lng.toFixed(5)} · ca. ${Math.round(S.pos.accuracy)} m</p><input id="stN" placeholder="Name, z. B. Kanzel Nord"><button class="btn ok" onclick="addStand()">Position übernehmen und anlegen</button>`);}
 async function delStand(id,name){if(!confirm('Stand „'+name+'“ entfernen?'))return;await sb.from('stands').delete().eq('id',id);}
+
+
+/* ===== AR ===== */
+const AR={on:false,heading:null,stream:null,raf:null,src:null};
+function bearing(a,b){const r=d=>d*Math.PI/180,y=Math.sin(r(b.lng-a.lng))*Math.cos(r(b.lat)),x=Math.cos(r(a.lat))*Math.sin(r(b.lat))-Math.sin(r(a.lat))*Math.cos(r(b.lat))*Math.cos(r(b.lng-a.lng));return (Math.atan2(y,x)*180/Math.PI+360)%360;}
+function dirName(d){return ['N','NO','O','SO','S','SW','W','NW'][Math.round(((d%360)+360)%360/45)%8];}
+async function startAR(){
+  if(!S.pos)return toast('Warte auf GPS, dann AR öffnen');
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission(); if(r!=='granted')return toast('Bewegungssensoren nicht erlaubt');
+    }
+    AR.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  }catch(e){return toast('Kamera/Sensor nicht verfügbar: '+(e.message||e));}
+  $('arVideo').srcObject=AR.stream;$('ar').classList.remove('hidden');AR.on=true;AR.heading=null;
+  window.addEventListener('deviceorientationabsolute',onOrient,true);window.addEventListener('deviceorientation',onOrient,true);
+  const loop=()=>{if(!AR.on)return;renderAR();AR.raf=setTimeout(loop,120);};loop();
+}
+function stopAR(){AR.on=false;clearTimeout(AR.raf);window.removeEventListener('deviceorientationabsolute',onOrient,true);window.removeEventListener('deviceorientation',onOrient,true);if(AR.stream)AR.stream.getTracks().forEach(t=>t.stop());$('arVideo').srcObject=null;$('ar').classList.add('hidden');}
+function onOrient(e){
+  let h=null;
+  if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;            // iOS
+  else if(e.absolute&&typeof e.alpha==='number')h=(360-e.alpha)%360;                // Android
+  else if(typeof e.alpha==='number'&&h===null)h=(360-e.alpha)%360;
+  if(h!==null){AR.heading=AR.heading===null?h:AR.heading+((h-AR.heading+540)%360-180)*0.25;}
+}
+function renderAR(){
+  const W=window.innerWidth,H=window.innerHeight,FOV=60,PPD=W/FOV,now=Date.now();
+  const cp=$('arCompass');
+  if(AR.heading===null){cp.innerHTML='';$('arInfo').textContent='Kompass wird gesucht – Handy kurz in einer Acht bewegen';$('arLayer').innerHTML='';return;}
+  const hd=AR.heading;
+  let ch='<div class="center"></div>';
+  for(let d=Math.round((hd-FOV/2)/5)*5;d<=hd+FOV/2;d+=5){const n=((d%360)+360)%360,x=W/2+(d-hd)*PPD;ch+=`<div class="tick ${n%45===0?'major':''}" style="left:${x}px"></div>`;if(n%90===0)ch+=`<div class="lbl" style="left:${x}px">${['N','O','S','W'][n/90]}</div>`;}
+  cp.innerHTML=ch;
+  $('arInfo').textContent=`Blick nach ${dirName(hd)} · ${Math.round(hd)}° · eigene Genauigkeit ca. ${Math.round(S.pos.accuracy)} m`;
+  const objs=[];
+  S.others.forEach(p=>{if(p.lat==null)return;const t=tone(p,now),st=standOf(p);objs.push({name:p.name,sub:(st&&p.status==='on_stand'?st.name:p.status==='moving'?'in Bewegung':'kein Stand')+' · etwa '+Math.round(distanceM(S.pos,p))+' m',age:t.txt,cls:t.cls,b:bearing(S.pos,p),d:distanceM(S.pos,p)});});
+  S.stands.forEach(st=>{const occ=S.others.some(p=>p.stand_id===st.id&&p.status==='on_stand')||S.me?.stand_id===st.id;objs.push({name:st.name,sub:(occ?'besetzt':'unbesetzt')+' · etwa '+Math.round(distanceM(S.pos,st))+' m',age:'gespeicherte Koordinate',cls:'point',b:bearing(S.pos,st),d:distanceM(S.pos,st)});});
+  let out='';const left=[],right=[];
+  objs.sort((a,b)=>b.d-a.d).forEach(o=>{const diff=((o.b-hd+540)%360)-180;
+    if(Math.abs(diff)<=FOV/2+4){const x=W/2+diff*PPD,y=H*0.55-Math.min(120,o.d/8);out+=`<div class="armk ${o.cls}" style="left:${x}px;top:${y}px"><div class="box">${esc(o.name)}<small>${esc(o.sub)}</small><small>${esc(o.age)}</small></div><div class="ring"></div></div>`;}
+    else(diff<0?left:right).push(o);});
+  if(left.length)out+=`<div class="edge l">◀ ${esc(left[0].name)}<span>${left.length>1?'+'+(left.length-1)+' weitere':Math.round(left[0].d)+' m'}</span></div>`;
+  if(right.length)out+=`<div class="edge r">${esc(right[0].name)} ▶<span>${right.length>1?'+'+(right.length-1)+' weitere':Math.round(right[0].d)+' m'}</span></div>`;
+  $('arLayer').innerHTML=out||'<div class="edge" style="left:50%;transform:translate(-50%,-50%)">Niemand in dieser Richtung<span>Handy drehen</span></div>';
+}
 
 /* Sichtbarkeit: wenn Safari zurückkommt, sofort neu laden */
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.code)load();});
