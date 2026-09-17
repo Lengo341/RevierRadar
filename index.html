@@ -134,6 +134,17 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
 .codebox small{color:var(--muted);font-size:.8rem;display:block}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two .btn{margin-top:10px}
+.ed{position:fixed;inset:0;z-index:1400;background:var(--bg);display:flex;flex-direction:column}
+#edMap{flex:1}
+.edbar{display:flex;gap:6px;padding:8px 8px calc(10px + env(safe-area-inset-bottom));background:#0b110d;border-top:1px solid var(--line);overflow-x:auto}
+.edbar button{flex:1;min-width:80px;padding:12px 8px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:.8rem;display:flex;flex-direction:column;align-items:center;gap:4px}
+.edbar button.on{background:var(--panel2);color:var(--ink);border-color:var(--sky)}
+.edbar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.edtop{position:absolute;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:500;display:flex;gap:8px;align-items:center}
+.edtop .hint{flex:1;background:rgba(18,27,22,.92);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.85rem;line-height:1.35}
+.edtop .btn{width:auto;margin:0;padding:10px 14px;font-size:.9rem}
+.banner{margin:8px 18px 0;padding:10px 12px;border-radius:12px;background:rgba(233,116,60,.16);border:1px solid rgba(233,116,60,.5);font-size:.85rem;line-height:1.4}
+.banner b{color:var(--alert)}
 </style>
 </head>
 <body>
@@ -176,6 +187,7 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
   <div class="card codebox"><small>Einladungscode</small><div class="c" id="rvCode"></div><small>Gäste geben ihn auf dem Startbildschirm ein</small>
     <div class="two"><button class="btn sec" id="rvShare">Teilen</button><button class="btn sec" id="rvRegen">Neu generieren</button></div></div>
   <button class="btn ok" id="rvJoin">Session öffnen und beitreten</button>
+  <button class="btn sec" id="rvEdit">Revier bearbeiten – Stände, Grenze, Sperrgebiete</button>
   <div class="label">Name des Reviers</div>
   <div class="two" style="grid-template-columns:1fr auto;align-items:end"><input id="rvNameIn"><button class="btn sec" id="rvSave" style="width:auto;margin-top:0;padding:15px 18px">Speichern</button></div>
   <p class="note" style="padding:14px 0 0">Stände legst du in der Session über den Reiter „Stände“ direkt an der Position an. Ein neuer Code macht den alten sofort ungültig.</p>
@@ -204,6 +216,18 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
   <div class="ar-foot">Marker aus Positions- und Kompassdaten, nicht aus dem Kamerabild. Personen ohne App werden nicht erkannt. Richtung ungefähr – Kompass kann abweichen.</div>
   <button class="btn sec" id="arClose" style="position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;width:auto;margin:0;padding:10px 14px;z-index:5">Schließen</button>
 </section>
+<section id="editor" class="ed hidden">
+  <div class="edtop"><div class="hint" id="edHint">Werkzeug wählen</div><button class="btn sec" id="edClose">Fertig</button></div>
+  <div id="edMap"></div>
+  <div class="edbar">
+    <button data-m="stand"><svg viewBox="0 0 24 24"><path d="M7 21V9h10v12M5 9h14M9 9V5h6v4"/></svg>Stand</button>
+    <button data-m="border"><svg viewBox="0 0 24 24"><path d="M4 6l5-2 6 3 5-2v13l-5 2-6-3-5 2z" stroke-dasharray="3 2"/></svg>Grenze</button>
+    <button data-m="restricted"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/></svg>Sperrgebiet</button>
+    <button data-m="select"><svg viewBox="0 0 24 24"><path d="M5 3l14 9-6 1-3 6z"/></svg>Auswählen</button>
+    <button id="edUndo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Rückgängig</button>
+    <button id="edDone"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Speichern</button>
+  </div>
+</section>
 <div class="sheet" id="sheet"><div class="card" id="card"></div></div>
 
 <script>
@@ -228,12 +252,12 @@ function deviceId(){let id=localStorage.getItem('rr.device');if(!id){id='dev-'+M
 
 
 /* ===== Zustand ===== */
-let S={view:'start',user:null,reviere:[],revier:null,revierId:null,revierName:null,name:null,dev:deviceId(),me:null,others:[],stands:[],pos:null,tab:'map',lastSend:0,watchId:null,channel:null,gpsError:null};
-let map,layerPeople,layerStands,layerAcc,centered=false;
+let S={zones:[],view:'start',user:null,reviere:[],revier:null,revierId:null,revierName:null,name:null,dev:deviceId(),me:null,others:[],stands:[],pos:null,tab:'map',lastSend:0,watchId:null,channel:null,gpsError:null};
+let map,layerPeople,layerStands,layerAcc,layerZones,centered=false;
 function newCode(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789';const r=s=>s[Math.floor(Math.random()*s.length)];return r(L)+r(L)+r(L)+r(L)+'-'+r(D)+r(L)+r(D);}
 
 /* ===== Navigation ===== */
-function show(view){S.view=view;['start','auth','reviere','revier','app'].forEach(v=>$(v).classList.toggle('hidden',v!==view));if(view==='app'&&map)setTimeout(()=>map.invalidateSize(),50);}
+function show(view){S.view=view;['start','auth','reviere','revier','app','editor'].forEach(v=>$(v).classList.toggle('hidden',v!==view));if(view==='app'&&map)setTimeout(()=>map.invalidateSize(),50);}
 function goStart(){show('start');}
 
 /* ===== Auth ===== */
@@ -306,7 +330,7 @@ function startSession(){
   if(!map){
     map=L.map('map',{zoomControl:false}).setView([51.2,9.4],7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-    layerAcc=L.layerGroup().addTo(map);layerPeople=L.layerGroup().addTo(map);layerStands=L.layerGroup().addTo(map);
+    layerZones=L.layerGroup().addTo(map);layerAcc=L.layerGroup().addTo(map);layerPeople=L.layerGroup().addTo(map);layerStands=L.layerGroup().addTo(map);
     document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{if(b.dataset.t==='ar'){startAR();return;}S.tab=b.dataset.t;render();});
     $('arClose').onclick=stopAR;$('leaveBtn').onclick=leaveSession;
     $('btnMe').onclick=()=>{if(S.pos)map.setView([S.pos.lat,S.pos.lng],Math.max(map.getZoom(),16));};
@@ -317,6 +341,7 @@ function startSession(){
   S.channel=sb.channel('revier-'+S.revierId)
     .on('postgres_changes',{event:'*',schema:'public',table:'participants',filter:`revier_id=eq.${S.revierId}`},load)
     .on('postgres_changes',{event:'*',schema:'public',table:'stands',filter:`revier_id=eq.${S.revierId}`},load)
+    .on('postgres_changes',{event:'*',schema:'public',table:'zones',filter:`revier_id=eq.${S.revierId}`},load)
     .subscribe();
   S.poll=setInterval(load,10000);S.clock=setInterval(render,1000);
   S.watchId=navigator.geolocation.watchPosition(onPos,err=>{S.gpsError=err.message;render();},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
@@ -324,7 +349,8 @@ function startSession(){
 async function load(){
   if(!S.revierId)return;
   const cutoff=new Date(Date.now()-GHOST_H*3600e3).toISOString();
-  const [{data:p},{data:st}]=await Promise.all([sb.from('participants').select('*').eq('revier_id',S.revierId),sb.from('stands').select('*').eq('revier_id',S.revierId).order('created_at')]);
+  const [{data:p},{data:st},{data:z}]=await Promise.all([sb.from('participants').select('*').eq('revier_id',S.revierId),sb.from('stands').select('*').eq('revier_id',S.revierId).order('created_at'),sb.from('zones').select('*').eq('revier_id',S.revierId)]);
+  if(z)S.zones=z;
   if(p){const ghosts=p.filter(x=>x.updated_at<cutoff&&x.device_id!==S.dev);if(ghosts.length)sb.from('participants').delete().in('id',ghosts.map(g=>g.id)).then(()=>{});
     const live=p.filter(x=>x.updated_at>=cutoff||x.device_id===S.dev);
     S.me=live.find(x=>x.device_id===S.dev)||S.me;S.others=live.filter(x=>x.device_id!==S.dev);}
@@ -366,7 +392,8 @@ function render(){
   $('title').textContent=S.tab==='map'?'Lagebild':S.tab==='stand'?'Mein Stand':'Stände';
 
   // Karte
-  layerPeople.clearLayers();layerAcc.clearLayers();layerStands.clearLayers();
+  layerPeople.clearLayers();layerAcc.clearLayers();layerStands.clearLayers();layerZones.clearLayers();
+  S.zones.forEach(z=>drawZone(z,layerZones));
   S.stands.forEach(st=>{const mine=st.id===S.me?.stand_id&&S.me?.status==='on_stand';
     const occ=people.some(p=>p.stand_id===st.id&&p.status==='on_stand');
     L.marker([st.lat,st.lng],{zIndexOffset:1000,icon:L.divIcon({className:'',html:`<svg class="stand-pin" viewBox="0 0 22 22"><rect x="4" y="3" width="14" height="9" rx="1.5" fill="${occ?'#3b5346':'#1b2822'}" stroke="${occ?'#8fbf7f':'#8db3c9'}" stroke-width="1.6"/><path d="M6 12l-3 9M16 12l3 9M4 17h14" stroke="${occ?'#8fbf7f':'#8db3c9'}" stroke-width="1.6" fill="none"/></svg>`,iconSize:[26,26],iconAnchor:[13,26]})}).bindTooltip(esc(st.name)+(occ?' · besetzt':''),{permanent:true,direction:'right',offset:[12,-14],className:'stand-tip'}).addTo(layerStands);});
@@ -377,7 +404,8 @@ function render(){
   // Untere Fläche
   const pane=$('pane');
   if(S.tab==='map'){
-    pane.innerHTML=people.map(p=>{const t=tone(p,now),st=standOf(p);
+    const zw=zoneWarnings();
+    pane.innerHTML=zw.map(w=>`<div class="banner"><b>${w[0]}</b><br>${w[1]}</div>`).join('')+people.map(p=>{const t=tone(p,now),st=standOf(p);
       const status=p.status==='on_stand'?`${st?esc(st.name):'Stand'} bestätigt ${fmtTime(p.stand_confirmed_at)}`:p.status==='moving'?`in Bewegung · ${esc(p.status_reason||'ohne Angabe')}`:'kein Stand bestätigt';
       const ini=esc((p.name||'?').trim().slice(0,2).toUpperCase());
       return `<div class="row"><div class="av ${t.cls}">${ini}</div><div><div class="name">${esc(p.name)}${p.isMe?'<span>du</span>':''}</div><div class="meta">${t.stale?`<em>Position ${t.txt} – ${p.status==='on_stand'?'Belegung unklar':'Aufenthalt unbekannt'}</em>`:status}</div><div class="meta">${p.accuracy?`ca. ${Math.round(p.accuracy)} m · `:''}Handy-Ortung</div></div><div class="age"><b class="${t.stale?'stale':''}">${t.txt}</b></div></div>`;}).join('')
@@ -454,6 +482,61 @@ function renderAR(){
   $('arLayer').innerHTML=out||'<div class="edge" style="left:50%;transform:translate(-50%,-50%)">Niemand in dieser Richtung<span>Handy drehen</span></div>';
 }
 
+
+
+/* ===== Zonen & Editor ===== */
+function drawZone(z,layer){const pts=z.points;if(!pts||pts.length<2)return null;
+  const o=z.kind==='border'?L.polygon(pts,{color:'#8db3c9',weight:2,dashArray:'6 5',fill:false}):L.polygon(pts,{color:'#e9743c',weight:1.5,fillColor:'#e9743c',fillOpacity:.22});
+  if(z.name&&z.kind==='restricted')o.bindTooltip(esc(z.name),{permanent:true,direction:'center',className:'stand-tip'});
+  o.addTo(layer);return o;}
+function inPoly(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const yi=poly[i][0],xi=poly[i][1],yj=poly[j][0],xj=poly[j][1];if(((yi>pt.lat)!==(yj>pt.lat))&&(pt.lng<(xj-xi)*(pt.lat-yi)/(yj-yi)+xi))c=!c;}return c;}
+function zoneWarnings(){const w=[];if(!S.pos)return w;
+  const b=S.zones.filter(z=>z.kind==='border');if(b.length&&!b.some(z=>inPoly(S.pos,z.points)))w.push(['Außerhalb der Reviergrenze','Deine Position liegt außerhalb der hinterlegten Grenze. GPS-Toleranz ca. '+Math.round(S.pos.accuracy)+' m – Grenzlage unsicher.']);
+  S.zones.filter(z=>z.kind==='restricted'&&inPoly(S.pos,z.points)).forEach(z=>w.push(['Sperrgebiet: '+esc(z.name||'ohne Namen'),'Deine Position liegt in einem hinterlegten Sperrgebiet.']));
+  return w;}
+const ED={map:null,mode:null,pts:[],preview:null,lStands:null,lZones:null,stands:[],zones:[],rev:null};
+$('rvEdit').onclick=openEditor;
+$('edClose').onclick=()=>{if(ED.mode&&ED.pts.length)return toast('Erst speichern oder Rückgängig');show('revier');openRevier(ED.rev.id);};
+document.querySelectorAll('.edbar button[data-m]').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('edUndo').onclick=()=>{if(ED.pts.length){ED.pts.pop();drawPreview();}};
+$('edDone').onclick=savePolygon;
+async function openEditor(){
+  ED.rev=S.revier;show('editor');
+  if(!ED.map){ED.map=L.map('edMap',{zoomControl:false}).setView([51.2,9.4],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(ED.map);
+    ED.lZones=L.layerGroup().addTo(ED.map);ED.lStands=L.layerGroup().addTo(ED.map);ED.map.on('click',edClick);}
+  setTimeout(()=>ED.map.invalidateSize(),50);
+  await edLoad();
+  const pts=[...ED.stands.map(s=>[s.lat,s.lng]),...ED.zones.flatMap(z=>z.points)];
+  if(pts.length>1)ED.map.fitBounds(pts,{padding:[40,40],maxZoom:17});else if(pts.length===1)ED.map.setView(pts[0],16);
+  else navigator.geolocation.getCurrentPosition(l=>ED.map.setView([l.coords.latitude,l.coords.longitude],15),()=>{});
+  setMode('select');
+}
+async function edLoad(){const [{data:st},{data:z}]=await Promise.all([sb.from('stands').select('*').eq('revier_id',ED.rev.id).order('created_at'),sb.from('zones').select('*').eq('revier_id',ED.rev.id)]);ED.stands=st||[];ED.zones=z||[];edDraw();}
+function edDraw(){ED.lStands.clearLayers();ED.lZones.clearLayers();
+  ED.zones.forEach(z=>{const o=drawZone(z,ED.lZones);if(o)o.on('click',e=>{L.DomEvent.stop(e);if(ED.mode==='select')zoneSheet(z);});});
+  ED.stands.forEach(s=>{const m=L.marker([s.lat,s.lng],{draggable:true,icon:L.divIcon({className:'',html:`<svg class="stand-pin" viewBox="0 0 22 22"><rect x="4" y="3" width="14" height="9" rx="1.5" fill="#1b2822" stroke="#8db3c9" stroke-width="1.6"/><path d="M6 12l-3 9M16 12l3 9M4 17h14" stroke="#8db3c9" stroke-width="1.6" fill="none"/></svg>`,iconSize:[26,26],iconAnchor:[13,26]})}).bindTooltip(esc(s.name),{permanent:true,direction:'right',offset:[12,-14],className:'stand-tip'}).addTo(ED.lStands);
+    m.on('click',e=>{L.DomEvent.stop(e);if(ED.mode==='select')standSheet(s);});
+    m.on('dragend',async e=>{const ll=e.target.getLatLng();await sb.from('stands').update({lat:ll.lat,lng:ll.lng}).eq('id',s.id);s.lat=ll.lat;s.lng=ll.lng;toast(s.name+' verschoben');});});
+}
+function setMode(m){ED.mode=m;ED.pts=[];drawPreview();document.querySelectorAll('.edbar button[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  $('edHint').textContent={stand:'Auf die Karte tippen, um einen Stand zu setzen.',border:'Grenze: Eckpunkte nacheinander antippen, dann Speichern.',restricted:'Sperrgebiet: Eckpunkte antippen, dann Speichern.',select:'Stand oder Gebiet antippen zum Bearbeiten. Stände lassen sich ziehen.'}[m];}
+function drawPreview(){if(ED.preview){ED.map.removeLayer(ED.preview);ED.preview=null;}if(!ED.pts.length)return;
+  const col=ED.mode==='border'?'#8db3c9':'#e9743c';ED.preview=L.featureGroup([L.polyline(ED.pts,{color:col,weight:2,dashArray:'4 4'}),...ED.pts.map(p=>L.circleMarker(p,{radius:6,color:col,fillColor:col,fillOpacity:.9}))]).addTo(ED.map);}
+function edClick(e){const ll=[e.latlng.lat,e.latlng.lng];
+  if(ED.mode==='stand'){openSheet(`<h2>Stand setzen</h2><p>${ll[0].toFixed(5)}, ${ll[1].toFixed(5)}</p><input id="stN" placeholder="Name, z. B. Kanzel Nord"><select id="stT" style="margin-top:10px"><option>Kanzel</option><option>Leiter</option><option>Bock</option><option>Drückjagdbock</option></select><button class="btn ok" id="stOk">Anlegen</button>`);
+    $('stOk').onclick=async()=>{const n=$('stN').value.trim()||`Stand ${ED.stands.length+1}`;const {error}=await sb.from('stands').insert({revier_id:ED.rev.id,name:n,type:$('stT').value,lat:ll[0],lng:ll[1],created_by:'Revier'});closeSheet();if(error)return toast(error.message);await edLoad();toast(n+' angelegt');};}
+  else if(ED.mode==='border'||ED.mode==='restricted'){ED.pts.push(ll);drawPreview();$('edHint').textContent=`${ED.pts.length} Punkte – weiter tippen oder Speichern`;}
+}
+function savePolygon(){if(!(ED.mode==='border'||ED.mode==='restricted'))return toast('Erst Grenze oder Sperrgebiet wählen');if(ED.pts.length<3)return toast('Mindestens 3 Punkte');
+  const kind=ED.mode;
+  openSheet(`<h2>${kind==='border'?'Reviergrenze speichern':'Sperrgebiet speichern'}</h2><p>${ED.pts.length} Eckpunkte.${kind==='border'&&ED.zones.some(z=>z.kind==='border')?' Die bisherige Grenze wird ersetzt.':''}</p>${kind==='restricted'?'<input id="znN" placeholder="Name, z. B. Wanderweg / Ortsrand">':''}<button class="btn ok" id="znOk">Speichern</button><button class="btn sec" onclick="closeSheet()">Weiter zeichnen</button>`);
+  $('znOk').onclick=async()=>{if(kind==='border')await sb.from('zones').delete().eq('revier_id',ED.rev.id).eq('kind','border');
+    const {error}=await sb.from('zones').insert({revier_id:ED.rev.id,kind,name:kind==='restricted'?($('znN').value.trim()||null):'Reviergrenze',points:ED.pts});closeSheet();if(error)return toast(error.message);ED.pts=[];drawPreview();await edLoad();toast('Gespeichert');setMode('select');};}
+function standSheet(s){openSheet(`<h2>${esc(s.name)}</h2><p>${esc(s.type)} · ${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}</p><input id="stN" value="${esc(s.name)}"><select id="stT" style="margin-top:10px">${['Kanzel','Leiter','Bock','Drückjagdbock'].map(t=>`<option ${s.type===t?'selected':''}>${t}</option>`).join('')}</select><button class="btn ok" id="stSave">Speichern</button><button class="btn danger" id="stDel">Stand löschen</button>`);
+  $('stSave').onclick=async()=>{await sb.from('stands').update({name:$('stN').value.trim()||s.name,type:$('stT').value}).eq('id',s.id);closeSheet();edLoad();toast('Gespeichert');};
+  $('stDel').onclick=async()=>{await sb.from('stands').delete().eq('id',s.id);closeSheet();edLoad();toast('Gelöscht');};}
+function zoneSheet(z){openSheet(`<h2>${z.kind==='border'?'Reviergrenze':esc(z.name||'Sperrgebiet')}</h2><p>${z.points.length} Eckpunkte</p><button class="btn danger" id="znDel">Löschen</button><button class="btn sec" onclick="closeSheet()">Schließen</button>`);
+  $('znDel').onclick=async()=>{await sb.from('zones').delete().eq('id',z.id);closeSheet();edLoad();toast('Gelöscht');};}
 
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.view==='app')load();});
 initAuth();
