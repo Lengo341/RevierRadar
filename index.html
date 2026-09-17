@@ -17,7 +17,7 @@
 <style>
 :root{--bg:#0f1713;--bg2:#121b16;--panel:#1b2822;--panel2:#23342c;--line:#2a3a31;--ink:#e6ede4;--muted:#8fa094;--faint:#5f7166;--ok:#8fbf7f;--warn:#e8a04a;--stale:#9aa39c;--alert:#e9743c;--sky:#8db3c9;--r:18px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+html,body{height:100%;height:100dvh;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 body{display:flex;flex-direction:column}
 .hidden{display:none!important}
 button{font:inherit;cursor:pointer}
@@ -40,7 +40,7 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
 .pill.ok{color:var(--ok);background:rgba(143,191,127,.14)}.pill.warn{color:var(--warn);background:rgba(232,160,74,.14)}.pill.stale{color:var(--warn);background:rgba(232,160,74,.14)}
 
 /* Start */
-#join{flex:1;padding:max(28px,env(safe-area-inset-top)) 22px 40px;display:flex;flex-direction:column;justify-content:center;max-width:480px;width:100%;margin:0 auto}
+#start,#auth,#reviere,#revier{flex:1;overflow-y:auto;padding:max(28px,env(safe-area-inset-top)) 22px 40px;display:flex;flex-direction:column;justify-content:center;max-width:480px;width:100%;margin:0 auto}
 .logo{display:flex;align-items:center;gap:14px;margin-bottom:6px}
 .logo svg{width:52px;height:52px;flex:none}
 .logo small{display:block;color:var(--muted);font-size:.8rem;font-weight:400;letter-spacing:.08em;text-transform:uppercase}
@@ -123,24 +123,63 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
 .edge.l{left:8px}.edge.r{right:8px;text-align:right}.edge span{display:block;color:var(--muted)}
 #arInfo{position:absolute;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));text-align:center;font-size:.85rem;color:#fff;text-shadow:0 1px 3px #000}
 .ar-foot{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(18,27,22,.86);border-radius:12px;padding:9px 11px;font-size:.74rem;line-height:1.4;color:var(--muted)}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.link{background:none;border:0;color:var(--sky);font-size:.95rem;padding:8px 0}
+.rv{display:flex;align-items:center;gap:14px;padding:14px;margin-top:10px;color:var(--ink)}
+.rv .ic{width:44px;height:44px;border-radius:12px;background:var(--panel2);display:flex;align-items:center;justify-content:center;flex:none}
+.rv .ic svg{width:24px;height:24px;stroke:var(--ok);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.rv .t{font-weight:700;font-size:1.05rem}.rv .m{color:var(--muted);font-size:.83rem;margin-top:2px}
+.codebox{text-align:center;padding:18px;border-style:dashed;margin-top:6px}
+.codebox .c{font-size:2rem;font-weight:700;letter-spacing:.18em;margin:6px 0}
+.codebox small{color:var(--muted);font-size:.8rem;display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two .btn{margin-top:10px}
 </style>
 </head>
 <body>
-
 <div class="toast" id="toast"></div>
 
-<section id="join">
+<section id="start">
   <div class="logo"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="none" stroke="#8fbf7f" stroke-width="2"/><circle cx="22" cy="22" r="11" fill="none" stroke="#8fbf7f" stroke-width="1.2" opacity=".5"/><path d="M22 4v6M22 34v6M4 22h6M34 22h6" stroke="#dfe7dd" stroke-width="1.5"/><circle cx="22" cy="22" r="3.5" fill="#e8a04a"/></svg><div><h1>RevierRadar</h1><small>Gemeinsames Lagebild</small></div></div>
   <p class="lead">Wer hat welchen Stand bestätigt, wo ist die letzte bekannte Position – und wie aktuell ist das? Deine Position wird nur geteilt, solange du in einer Session bist.</p>
   <div class="label">Einladungscode</div>
-  <input id="code" class="code" placeholder="NORD-7K2" autocapitalize="characters" autocomplete="off">
+  <input id="code" class="code" placeholder="WALD-4K7" autocapitalize="characters" autocomplete="off">
   <div class="label">Dein Name</div>
   <input id="name" placeholder="z. B. Jäger 1" autocomplete="off">
   <div class="card consent" style="margin-top:18px"><b>Standort teilen</b><ul><li>nur während dieser Session, bis du dich abmeldest</li><li>mit Messzeit und Genauigkeit – die Gruppe sieht, wie aktuell deine Position ist</li><li>kein Bewegungsverlauf nach dem Abmelden</li></ul></div>
   <button class="btn ok" id="joinBtn">Standort teilen und beitreten</button>
-  <p class="note" style="padding:14px 0 0">Wer denselben Code eingibt, ist in derselben Session. Kein Konto nötig. RevierRadar gibt keine Schussfreigabe.</p>
+  <button class="btn ghost" id="accountBtn">Anmelden</button>
+  <p class="note" style="padding:14px 0 0">Als Gast brauchst du nur den Code. Ein Konto brauchst du, um eigene Reviere mit Ständen und Einladungscode zu verwalten. RevierRadar gibt keine Schussfreigabe.</p>
 </section>
 
+<section id="auth" class="hidden">
+  <div class="topbar"><button class="link" id="authBack">‹ Zurück</button></div>
+  <h2>Anmelden</h2>
+  <p class="lead">Für Revierverantwortliche: Reviere anlegen, Stände pflegen, Einladungscodes erzeugen.</p>
+  <div class="label">E-Mail</div><input id="email" type="email" autocomplete="email" placeholder="name@beispiel.de">
+  <div class="label">Passwort</div><input id="pw" type="password" autocomplete="current-password" placeholder="mind. 6 Zeichen">
+  <div class="two"><button class="btn ok" id="loginBtn">Anmelden</button><button class="btn sec" id="signupBtn">Konto anlegen</button></div>
+  <p class="note" style="padding:14px 0 0">Zugangsdaten werden von Supabase verwaltet. Gäste brauchen kein Konto.</p>
+</section>
+
+<section id="reviere" class="hidden">
+  <div class="topbar"><button class="link" id="revBack">‹ Start</button><button class="link" id="logoutBtn">Ausloggen</button></div>
+  <h2>Meine Reviere</h2>
+  <p class="lead">Jedes Revier hat seine Stände und einen eigenen Einladungscode.</p>
+  <div id="revList"></div>
+  <button class="btn ok" id="newRevBtn">Revier anlegen</button>
+</section>
+
+<section id="revier" class="hidden">
+  <div class="topbar"><button class="link" id="rvDetailBack">‹ Meine Reviere</button><button class="link" id="rvDelete" style="color:var(--alert)">Löschen</button></div>
+  <h2 id="rvTitle"></h2><p class="lead" id="rvMeta"></p>
+  <div class="card codebox"><small>Einladungscode</small><div class="c" id="rvCode"></div><small>Gäste geben ihn auf dem Startbildschirm ein</small>
+    <div class="two"><button class="btn sec" id="rvShare">Teilen</button><button class="btn sec" id="rvRegen">Neu generieren</button></div></div>
+  <button class="btn ok" id="rvJoin">Session öffnen und beitreten</button>
+  <div class="label">Name des Reviers</div>
+  <div class="two" style="grid-template-columns:1fr auto;align-items:end"><input id="rvNameIn"><button class="btn sec" id="rvSave" style="width:auto;margin-top:0;padding:15px 18px">Speichern</button></div>
+  <p class="note" style="padding:14px 0 0">Stände legst du in der Session über den Reiter „Stände“ direkt an der Position an. Ein neuer Code macht den alten sofort ungültig.</p>
+</section>
 <section id="app" class="hidden">
   <div class="head"><div><h2 id="title">Lagebild</h2><small id="subtitle"></small></div><span class="pill ok" id="live">suche GPS</span></div>
   <div class="mapwrap"><div id="map"></div>
@@ -171,10 +210,7 @@ input.code{font-size:1.6rem;text-align:center;letter-spacing:.2em;font-weight:70
 /* ===== Einstellungen ===== */
 const SUPABASE_URL = 'https://amoezuinpmbmpfmvmhuh.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Wyd29dJyaEYIsz2ClYyfsw_DMmmVOvv';
-const STAND_NEAR_M = 40;      // Nähe für Standvorschlag (m)
-const STALE_S = 120;          // ab wann veraltet (s)
-const SEND_MIN_MS = 4000;     // Mindestabstand zwischen Übertragungen
-
+const STAND_NEAR_M = 40, STALE_S = 120, SEND_MIN_MS = 4000, GHOST_H = 4;
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
 
@@ -190,78 +226,129 @@ function closeSheet(){$('sheet').classList.remove('open');}
 $('sheet').addEventListener('click',e=>{if(e.target===$('sheet'))closeSheet();});
 function deviceId(){let id=localStorage.getItem('rr.device');if(!id){id='dev-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('rr.device',id);}return id;}
 
-/* ===== Zustand ===== */
-let S={code:null,name:null,dev:deviceId(),me:null,others:[],stands:[],pos:null,tab:'map',lastSend:0,watchId:null,channel:null,gpsError:null};
-let map,layerPeople,layerStands,layerAcc,centered=false;
 
-/* ===== Beitritt ===== */
-$('joinBtn').addEventListener('click',join);
-(function restore(){const raw=localStorage.getItem('rr.session');if(raw){const s=JSON.parse(raw);$('code').value=s.code;$('name').value=s.name;}})();
-async function join(){
-  const code=$('code').value.trim().toUpperCase(),name=$('name').value.trim();
-  if(code.length<4||!name)return toast('Bitte Code (mind. 4 Zeichen) und Namen eingeben');
-  if(!navigator.geolocation)return toast('Dieses Gerät unterstützt keine Ortung');
-  $('joinBtn').disabled=true;
+/* ===== Zustand ===== */
+let S={view:'start',user:null,reviere:[],revier:null,revierId:null,revierName:null,name:null,dev:deviceId(),me:null,others:[],stands:[],pos:null,tab:'map',lastSend:0,watchId:null,channel:null,gpsError:null};
+let map,layerPeople,layerStands,layerAcc,centered=false;
+function newCode(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789';const r=s=>s[Math.floor(Math.random()*s.length)];return r(L)+r(L)+r(L)+r(L)+'-'+r(D)+r(L)+r(D);}
+
+/* ===== Navigation ===== */
+function show(view){S.view=view;['start','auth','reviere','revier','app'].forEach(v=>$(v).classList.toggle('hidden',v!==view));if(view==='app'&&map)setTimeout(()=>map.invalidateSize(),50);}
+function goStart(){show('start');}
+
+/* ===== Auth ===== */
+sb.auth.onAuthStateChange((_e,session)=>{S.user=session?.user||null;$('accountBtn').textContent=S.user?'Meine Reviere':'Anmelden';});
+async function initAuth(){const {data}=await sb.auth.getSession();S.user=data.session?.user||null;$('accountBtn').textContent=S.user?'Meine Reviere':'Anmelden';}
+$('accountBtn').onclick=async()=>{if(S.user){await loadReviere();show('reviere');}else show('auth');};
+$('authBack').onclick=goStart;
+async function doAuth(mode){
+  const email=$('email').value.trim(),pw=$('pw').value;
+  if(!email||pw.length<6)return toast('E-Mail und Passwort (mind. 6 Zeichen) eingeben');
+  $('loginBtn').disabled=$('signupBtn').disabled=true;
   try{
-    const {error}=await sb.from('participants').upsert({device_id:S.dev,session_code:code,name,status:'unconfirmed',updated_at:new Date().toISOString()},{onConflict:'device_id,session_code'});
-    if(error)throw error;
-    S.code=code;S.name=name;localStorage.setItem('rr.session',JSON.stringify({code,name}));
-    $('join').classList.add('hidden');$('app').classList.remove('hidden');
-    startSession();toast('Beigetreten · Standort wird geteilt');
-  }catch(e){openSheet(`<h2>Beitritt fehlgeschlagen</h2><p>${esc(e.message||e)}</p><p>Wurde supabase.sql im SQL-Editor ausgeführt?</p><button class="btn sec" onclick="closeSheet()">OK</button>`);}
+    const r=mode==='login'?await sb.auth.signInWithPassword({email,password:pw}):await sb.auth.signUp({email,password:pw});
+    if(r.error)throw r.error;
+    if(mode==='signup'&&!r.data.session){openSheet(`<h2>Konto angelegt</h2><p>Bitte bestätige die E-Mail, die Supabase dir geschickt hat, und melde dich dann an. Zum Testen lässt sich die Bestätigung in Supabase unter Authentication → Providers → Email abschalten.</p><button class="btn sec" onclick="closeSheet()">OK</button>`);return;}
+    S.user=r.data.user;await loadReviere();show('reviere');toast('Angemeldet');
+  }catch(e){toast(e.message||String(e));}
+  finally{$('loginBtn').disabled=$('signupBtn').disabled=false;}
+}
+$('loginBtn').onclick=()=>doAuth('login');$('signupBtn').onclick=()=>doAuth('signup');
+$('logoutBtn').onclick=async()=>{await sb.auth.signOut();S.user=null;S.reviere=[];goStart();toast('Abgemeldet');};
+
+/* ===== Reviere ===== */
+$('revBack').onclick=goStart;
+async function loadReviere(){const {data,error}=await sb.from('reviere').select('*').order('created_at');if(error)toast(error.message);S.reviere=data||[];renderReviere();}
+function renderReviere(){
+  $('revList').innerHTML=S.reviere.map(r=>`<button class="card rv" style="width:100%;text-align:left" onclick="openRevier('${r.id}')"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></div><div><div class="t">${esc(r.name)}</div><div class="m">Code ${esc(r.invite_code)}</div></div></button>`).join('')||'<p class="note" style="padding:14px 0">Noch kein Revier. Lege dein erstes an.</p>';
+}
+$('newRevBtn').onclick=()=>{openSheet(`<h2>Revier anlegen</h2><p>Name des Reviers, z. B. „Nordrevier“ oder „Buchenhang“.</p><input id="rvName" placeholder="Reviername"><button class="btn ok" id="rvCreate">Anlegen</button>`);
+  $('rvCreate').onclick=async()=>{const n=$('rvName').value.trim();if(!n)return;const {data,error}=await sb.from('reviere').insert({owner_id:S.user.id,name:n,invite_code:newCode()}).select().single();if(error)return toast(error.message);closeSheet();await loadReviere();openRevier(data.id);};};
+async function openRevier(id){
+  S.revier=S.reviere.find(r=>r.id===id);if(!S.revier)return;
+  const {data:st}=await sb.from('stands').select('id').eq('revier_id',id);
+  const {data:pp}=await sb.from('participants').select('id').eq('revier_id',id).gt('updated_at',new Date(Date.now()-GHOST_H*3600e3).toISOString());
+  $('rvTitle').textContent=S.revier.name;
+  $('rvMeta').textContent=`${(st||[]).length} Stände · ${(pp||[]).length} aktive Teilnehmer`;
+  $('rvCode').textContent=S.revier.invite_code;$('rvNameIn').value=S.revier.name;
+  show('revier');
+}
+$('rvDetailBack').onclick=()=>show('reviere');
+$('rvSave').onclick=async()=>{const n=$('rvNameIn').value.trim();if(!n)return;const {error}=await sb.from('reviere').update({name:n}).eq('id',S.revier.id);if(error)return toast(error.message);await loadReviere();S.revier=S.reviere.find(r=>r.id===S.revier.id);$('rvTitle').textContent=n;toast('Gespeichert');};
+$('rvRegen').onclick=()=>{openSheet(`<h2>Neuen Code erzeugen?</h2><p>Der bisherige Code <b style="color:var(--ink)">${esc(S.revier.invite_code)}</b> wird ungültig. Wer schon in der Session ist, bleibt drin; neue Gäste brauchen den neuen Code.</p><button class="btn" id="rgOk">Neu generieren</button><button class="btn sec" onclick="closeSheet()">Abbrechen</button>`);
+  $('rgOk').onclick=async()=>{const c=newCode();const {error}=await sb.from('reviere').update({invite_code:c}).eq('id',S.revier.id);if(error)return toast(error.message);S.revier.invite_code=c;$('rvCode').textContent=c;await loadReviere();closeSheet();toast('Neuer Code: '+c);};};
+$('rvShare').onclick=async()=>{const t=`RevierRadar – ${S.revier.name}\nCode: ${S.revier.invite_code}\n${location.href.split('?')[0]}`;if(navigator.share){try{await navigator.share({text:t});}catch(e){}}else{await navigator.clipboard.writeText(t);toast('Kopiert');}};
+$('rvDelete').onclick=()=>{openSheet(`<h2>Revier löschen?</h2><p>„${esc(S.revier.name)}“ mit allen Ständen und Teilnehmern wird gelöscht.</p><button class="btn danger" id="delOk">Löschen</button><button class="btn sec" onclick="closeSheet()">Abbrechen</button>`);$('delOk').onclick=async()=>{await sb.from('reviere').delete().eq('id',S.revier.id);closeSheet();await loadReviere();show('reviere');};};
+$('rvJoin').onclick=()=>{openSheet(`<h2>Als Teilnehmer beitreten</h2><p>Dein Anzeigename für die anderen.</p><input id="jn" placeholder="Name" value="${esc(localStorage.getItem('rr.name')||'')}"><button class="btn ok" id="jnOk">Standort teilen und beitreten</button>`);$('jnOk').onclick=()=>{const n=$('jn').value.trim();if(!n)return;closeSheet();enterSession(S.revier.id,S.revier.name,n);};};
+
+/* ===== Beitritt per Code ===== */
+$('joinBtn').onclick=async()=>{
+  const code=$('code').value.trim().toUpperCase(),name=$('name').value.trim();
+  if(code.length<4||!name)return toast('Code und Namen eingeben');
+  $('joinBtn').disabled=true;
+  try{const {data,error}=await sb.rpc('revier_by_code',{p_code:code});if(error)throw error;if(!data||!data.length)throw new Error('Kein Revier mit diesem Code. Bitte den Code prüfen.');
+    localStorage.setItem('rr.code',code);await enterSession(data[0].id,data[0].name,name);}
+  catch(e){openSheet(`<h2>Beitritt fehlgeschlagen</h2><p>${esc(e.message||e)}</p><button class="btn sec" onclick="closeSheet()">OK</button>`);}
   finally{$('joinBtn').disabled=false;}
+};
+(function restore(){const n=localStorage.getItem('rr.name');if(n)$('name').value=n;const c=localStorage.getItem('rr.code');if(c)$('code').value=c;})();
+
+async function enterSession(revierId,revierName,name){
+  if(!navigator.geolocation)return toast('Dieses Gerät unterstützt keine Ortung');
+  const {error}=await sb.from('participants').upsert({device_id:S.dev,revier_id:revierId,name,status:'unconfirmed',updated_at:new Date().toISOString()},{onConflict:'device_id,revier_id'});
+  if(error)return toast(error.message);
+  S.revierId=revierId;S.revierName=revierName;S.name=name;localStorage.setItem('rr.name',name);
+  show('app');startSession();toast('Beigetreten · Standort wird geteilt');
 }
 
 /* ===== Session ===== */
 function startSession(){
   if(!map){
-    map=L.map('map',{zoomControl:false,attributionControl:true}).setView([51.2,9.4],7);
+    map=L.map('map',{zoomControl:false}).setView([51.2,9.4],7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
     layerAcc=L.layerGroup().addTo(map);layerPeople=L.layerGroup().addTo(map);layerStands=L.layerGroup().addTo(map);
+    document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{if(b.dataset.t==='ar'){startAR();return;}S.tab=b.dataset.t;render();});
+    $('arClose').onclick=stopAR;$('leaveBtn').onclick=leaveSession;
+    $('btnMe').onclick=()=>{if(S.pos)map.setView([S.pos.lat,S.pos.lng],Math.max(map.getZoom(),16));};
+    $('btnAll').onclick=()=>{const pts=[];if(S.pos)pts.push([S.pos.lat,S.pos.lng]);S.others.forEach(p=>p.lat!=null&&pts.push([p.lat,p.lng]));S.stands.forEach(st=>pts.push([st.lat,st.lng]));if(pts.length>1)map.fitBounds(pts,{padding:[40,40],maxZoom:17});};
   }
-  document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{if(b.dataset.t==='ar'){startAR();return;}S.tab=b.dataset.t;render();});
-  $('arClose').onclick=stopAR;
-  $('leaveBtn').onclick=leaveSession;
-  $('btnMe').onclick=()=>{if(S.pos)map.setView([S.pos.lat,S.pos.lng],Math.max(map.getZoom(),16));};
-  $('btnAll').onclick=()=>{const pts=[];if(S.pos)pts.push([S.pos.lat,S.pos.lng]);S.others.forEach(p=>p.lat!=null&&pts.push([p.lat,p.lng]));S.stands.forEach(st=>pts.push([st.lat,st.lng]));if(pts.length>1)map.fitBounds(pts,{padding:[40,40],maxZoom:17});};
+  setTimeout(()=>map.invalidateSize(),50);centered=false;S.tab='map';
   load();
-  S.channel=sb.channel('session-'+S.code)
-    .on('postgres_changes',{event:'*',schema:'public',table:'participants',filter:`session_code=eq.${S.code}`},load)
-    .on('postgres_changes',{event:'*',schema:'public',table:'stands',filter:`session_code=eq.${S.code}`},load)
+  S.channel=sb.channel('revier-'+S.revierId)
+    .on('postgres_changes',{event:'*',schema:'public',table:'participants',filter:`revier_id=eq.${S.revierId}`},load)
+    .on('postgres_changes',{event:'*',schema:'public',table:'stands',filter:`revier_id=eq.${S.revierId}`},load)
     .subscribe();
-  S.poll=setInterval(load,10000);
-  S.clock=setInterval(render,1000);
+  S.poll=setInterval(load,10000);S.clock=setInterval(render,1000);
   S.watchId=navigator.geolocation.watchPosition(onPos,err=>{S.gpsError=err.message;render();},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
 }
 async function load(){
-  const [{data:p},{data:st}]=await Promise.all([
-    sb.from('participants').select('*').eq('session_code',S.code),
-    sb.from('stands').select('*').eq('session_code',S.code).order('created_at')]);
-  if(p){S.me=p.find(x=>x.device_id===S.dev)||S.me;S.others=p.filter(x=>x.device_id!==S.dev);}
+  if(!S.revierId)return;
+  const cutoff=new Date(Date.now()-GHOST_H*3600e3).toISOString();
+  const [{data:p},{data:st}]=await Promise.all([sb.from('participants').select('*').eq('revier_id',S.revierId),sb.from('stands').select('*').eq('revier_id',S.revierId).order('created_at')]);
+  if(p){const ghosts=p.filter(x=>x.updated_at<cutoff&&x.device_id!==S.dev);if(ghosts.length)sb.from('participants').delete().in('id',ghosts.map(g=>g.id)).then(()=>{});
+    const live=p.filter(x=>x.updated_at>=cutoff||x.device_id===S.dev);
+    S.me=live.find(x=>x.device_id===S.dev)||S.me;S.others=live.filter(x=>x.device_id!==S.dev);}
   if(st)S.stands=st;
   render();
 }
 async function onPos(loc){
-  S.gpsError=null;
-  S.pos={lat:loc.coords.latitude,lng:loc.coords.longitude,accuracy:loc.coords.accuracy,measured_at:new Date(loc.timestamp).toISOString()};
+  S.gpsError=null;S.pos={lat:loc.coords.latitude,lng:loc.coords.longitude,accuracy:loc.coords.accuracy,measured_at:new Date(loc.timestamp).toISOString()};
   if(!centered){map.setView([S.pos.lat,S.pos.lng],16);centered=true;}
   const now=Date.now();
-  if(now-S.lastSend>=SEND_MIN_MS){S.lastSend=now;await sb.from('participants').update({...S.pos,updated_at:new Date().toISOString()}).eq('device_id',S.dev).eq('session_code',S.code);}
+  if(now-S.lastSend>=SEND_MIN_MS){S.lastSend=now;await sb.from('participants').update({...S.pos,updated_at:new Date().toISOString()}).eq('device_id',S.dev).eq('revier_id',S.revierId);}
   render();
 }
-async function updateMe(patch){await sb.from('participants').update({...patch,updated_at:new Date().toISOString()}).eq('device_id',S.dev).eq('session_code',S.code);}
+async function updateMe(patch){await sb.from('participants').update({...patch,updated_at:new Date().toISOString()}).eq('device_id',S.dev).eq('revier_id',S.revierId);}
 async function confirmStand(id){await updateMe({stand_id:id,stand_confirmed_at:new Date().toISOString(),status:'on_stand',status_reason:null});closeSheet();toast('Stand bestätigt · Gruppe informiert');}
 async function leaveStand(reason){closeSheet();await updateMe({status:'moving',status_reason:reason});toast('Gruppe informiert · Grund: '+reason);}
-async function addStand(){
-  const n=$('stN').value.trim()||`Stand ${S.stands.length+1}`;closeSheet();
-  await sb.from('stands').insert({session_code:S.code,name:n,lat:S.pos.lat,lng:S.pos.lng,created_by:S.name});toast('Stand angelegt · vor Ort prüfen');
-}
 function leaveSession(){
   openSheet(`<h2>Abmelden?</h2><p>Deine Standortfreigabe endet sofort. Mit dem Code kannst du jederzeit wieder beitreten.</p><button class="btn" id="lv">Abmelden</button><button class="btn sec" onclick="closeSheet()">Bleiben</button>`);
   $('lv').onclick=async()=>{closeSheet();navigator.geolocation.clearWatch(S.watchId);clearInterval(S.poll);clearInterval(S.clock);if(S.channel)sb.removeChannel(S.channel);
-    await sb.from('participants').delete().eq('device_id',S.dev).eq('session_code',S.code);
-    localStorage.removeItem('rr.session');location.reload();};
+    await sb.from('participants').delete().eq('device_id',S.dev).eq('revier_id',S.revierId);
+    const rid=S.revierId;S.revierId=null;S.me=null;S.others=[];S.stands=[];S.pos=null;
+    if(S.user&&S.revier&&S.revier.id===rid){await openRevier(rid);}else goStart();toast('Abgemeldet · Freigabe beendet');};
 }
+async function addStand(){const n=$('stN').value.trim()||`Stand ${S.stands.length+1}`;closeSheet();await sb.from('stands').insert({revier_id:S.revierId,name:n,lat:S.pos.lat,lng:S.pos.lng,created_by:S.name});toast('Stand angelegt · vor Ort prüfen');}
 
 /* ===== Darstellung ===== */
 function tone(p,now){const a=ageS(p.measured_at,now);if(!isFinite(a))return{cls:'stale',txt:'keine Messung',stale:true};if(a>STALE_S)return{cls:'stale',txt:ageText(a)+' · veraltet',stale:true};return{cls:p.status==='on_stand'?'ok':'warn',txt:ageText(a),stale:false};}
@@ -270,7 +357,7 @@ function render(){
   const now=Date.now();
   const people=[S.me&&{...S.me,isMe:true,lat:S.pos?.lat??S.me.lat,lng:S.pos?.lng??S.me.lng,accuracy:S.pos?.accuracy??S.me.accuracy,measured_at:S.pos?.measured_at??S.me.measured_at},...S.others].filter(Boolean);
   const myAge=ageS(S.pos?.measured_at,now);
-  $('subtitle').textContent=`Session ${S.code} · ${people.length} Teilnehmer · du bist ${S.name}`;
+  $('subtitle').textContent=`${esc(S.revierName)} · ${people.length} Teilnehmer · du bist ${esc(S.name)}`;
   const lv=$('live');
   if(S.gpsError){lv.textContent='GPS-Fehler';lv.className='pill warn';}
   else if(!S.pos){lv.textContent='suche GPS';lv.className='pill warn';}
@@ -367,8 +454,9 @@ function renderAR(){
   $('arLayer').innerHTML=out||'<div class="edge" style="left:50%;transform:translate(-50%,-50%)">Niemand in dieser Richtung<span>Handy drehen</span></div>';
 }
 
-/* Sichtbarkeit: wenn Safari zurückkommt, sofort neu laden */
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.code)load();});
+
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.view==='app')load();});
+initAuth();
 </script>
 </body>
 </html>
